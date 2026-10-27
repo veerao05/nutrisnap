@@ -1,0 +1,23 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Local data and secrets
+nutrisnap.db
+.env
+.env.*
+
+# Personal files kept in this folder, not part of the project
+abhiman.pdf
+*.jpeg
+*.jpg
+*.webp
+*.png
+!docs/*.png
+
+# Editor / OS
+.DS_Store
+.vscode/
+.idea/

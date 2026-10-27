@@ -1,0 +1,486 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NutriSnap</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🥗</text></svg>">
+<style>
+  :root {
+    --bg: #f6f7f4; --card: #ffffff; --ink: #1c211d; --muted: #6b726c; --line: #e4e7e1;
+    --brand: #2f8f5b; --brand-ink: #ffffff; --brand-soft: #e3f2e9;
+    --protein: #d9624a; --carbs: #e0a526; --fat: #4a7fd9; --warn: #c2412d;
+    --radius: 16px; --shadow: 0 1px 2px rgb(0 0 0 / .04), 0 4px 16px rgb(0 0 0 / .05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #111412; --card: #1a1e1b; --ink: #e8ece8; --muted: #9aa39c; --line: #2a302b;
+      --brand: #4cb87d; --brand-ink: #0c140f; --brand-soft: #1d3326;
+      --protein: #ec7a62; --carbs: #eab547; --fat: #6d9bf0; --warn: #f07560;
+      --shadow: none;
+    }
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 560px; margin: 0 auto; padding: 16px 16px 48px; }
+  header { display: flex; align-items: center; justify-content: space-between; margin: 4px 0 16px; }
+  h1 { font-size: 22px; margin: 0; letter-spacing: -.01em; }
+  h1 span { color: var(--brand); }
+  h2 { font-size: 15px; margin: 0 0 12px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+          box-shadow: var(--shadow); padding: 16px; margin-bottom: 14px; }
+  .muted { color: var(--muted); }
+  .small { font-size: 13px; }
+  button { font: inherit; cursor: pointer; border-radius: 10px; border: 1px solid var(--line);
+           background: var(--card); color: var(--ink); padding: 9px 14px; }
+  button.primary { background: var(--brand); border-color: var(--brand); color: var(--brand-ink); font-weight: 600; }
+  button:disabled { opacity: .55; cursor: default; }
+  button.link { border: 0; background: none; color: var(--muted); padding: 4px 6px; }
+  input, select { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line);
+                  border-radius: 8px; padding: 7px 9px; width: 100%; }
+  .banner.warn { background: color-mix(in srgb, var(--warn) 18%, transparent); }
+  .banner { background: var(--brand-soft); border-radius: 10px; padding: 8px 12px; font-size: 13px; margin-bottom: 14px; }
+
+  /* Summary */
+  .summary { display: grid; grid-template-columns: 132px 1fr; gap: 18px; align-items: center; }
+  .ring { position: relative; width: 132px; height: 132px; }
+  .ring svg { transform: rotate(-90deg); }
+  .ring .center { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; }
+  .ring .big { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .macro { margin-bottom: 10px; }
+  .macro:last-child { margin-bottom: 0; }
+  .macro .row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px; }
+  .macro .row b { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .bar { height: 7px; background: var(--line); border-radius: 99px; overflow: hidden; }
+  .bar i { display: block; height: 100%; border-radius: 99px; transition: width .4s; }
+  .guide { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+  .guide p { margin: 0 0 6px; }
+  .guide ul { margin: 6px 0 0; padding-left: 18px; color: var(--muted); font-size: 14px; }
+  .over { color: var(--warn); }
+
+  /* Upload */
+  .drop { border: 2px dashed var(--line); border-radius: 12px; padding: 22px 12px; text-align: center; }
+  .drop.drag { border-color: var(--brand); background: var(--brand-soft); }
+  .drop img { max-width: 100%; max-height: 260px; border-radius: 10px; display: block; margin: 0 auto 12px; }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+  .hint { margin-top: 10px; }
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid currentColor;
+             border-right-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; vertical-align: -2px; margin-right: 6px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .engine-pick { margin-top: 14px; }
+  .error { color: var(--warn); font-size: 14px; margin-top: 10px; }
+
+  /* Items */
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; font-weight: 500; color: var(--muted); font-size: 12px; padding: 0 4px 6px; }
+  td { padding: 8px 4px; border-top: 1px solid var(--line); vertical-align: middle; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  td input { width: 64px; text-align: right; padding: 4px 6px; }
+  td input.name { width: 100%; min-width: 110px; text-align: left; font-weight: 500; }
+  .namerow { display: flex; align-items: center; gap: 2px; margin-bottom: 2px; }
+  .x { border: 0; background: none; color: var(--muted); padding: 0 4px; font-size: 16px; line-height: 1; }
+  .x:hover { color: var(--warn); }
+  .tag { font-size: 11px; color: var(--muted); }
+  .totals td { font-weight: 600; }
+  .log-row { display: flex; gap: 8px; margin-top: 12px; }
+  .log-row select { flex: 1; }
+
+  /* Meals */
+  .meal { display: flex; justify-content: space-between; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); }
+  .meal:first-of-type { border-top: 0; padding-top: 0; }
+  .meal .kcal { font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+  /* Goal dialog */
+  dialog { border: 1px solid var(--line); border-radius: var(--radius); background: var(--card); color: var(--ink);
+           width: min(440px, calc(100vw - 32px)); padding: 18px; }
+  dialog::backdrop { background: rgb(0 0 0 / .4); }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+  label { font-size: 12px; color: var(--muted); display: block; }
+  label input, label select { margin-top: 3px; }
+  details { margin: 12px 0; }
+  summary { cursor: pointer; font-size: 14px; }
+  @media (max-width: 420px) { .summary { grid-template-columns: 1fr; justify-items: center; } .summary > div:last-child { width: 100%; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Nutri<span>Snap</span></h1>
+    <button class="link" id="goalBtn">Goal ⚙</button>
+  </header>
+
+  <div class="banner warn" id="noEngine" hidden>
+    No analysis engine is set up. Add a key (e.g. a free <code>GEMINI_API_KEY</code>
+    or <code>ANTHROPIC_API_KEY</code>) or start Ollama, restart the server, then refresh.
+  </div>
+
+  <section class="card">
+    <div class="summary">
+      <div class="ring">
+        <svg width="132" height="132" viewBox="0 0 132 132">
+          <circle cx="66" cy="66" r="56" fill="none" stroke="var(--line)" stroke-width="12"/>
+          <circle id="ringArc" cx="66" cy="66" r="56" fill="none" stroke="var(--brand)" stroke-width="12"
+                  stroke-linecap="round" stroke-dasharray="351.9" stroke-dashoffset="351.9"
+                  style="transition: stroke-dashoffset .5s"/>
+        </svg>
+        <div class="center">
+          <div class="big" id="kcalLeft">–</div>
+          <div class="small muted" id="kcalLeftLabel">kcal left</div>
+        </div>
+      </div>
+      <div id="macros"></div>
+    </div>
+    <div class="guide" id="guide"></div>
+  </section>
+
+  <section class="card">
+    <h2>Snap a meal</h2>
+    <div class="drop" id="drop">
+      <img id="preview" hidden alt="Meal preview">
+      <div class="actions">
+        <button class="primary" id="pickBtn">📷 Take / choose photo</button>
+        <button id="analyzeBtn" hidden>Analyse</button>
+      </div>
+      <input type="file" id="file" accept="image/*" capture="environment" hidden>
+      <div class="small muted" style="margin-top:8px">or drop an image here</div>
+      <input class="hint" id="hint" placeholder="Optional note, e.g. “cooked in ghee”, “half portion”" hidden>
+    </div>
+    <div class="error" id="err" hidden></div>
+    <label class="engine-pick">Analysis engine
+      <select id="engineSel"></select>
+    </label>
+    <p class="small muted" id="engineHint" style="margin:6px 0 0"></p>
+  </section>
+
+  <section class="card" id="resultCard" hidden>
+    <h2>What we found</h2>
+    <table>
+      <thead><tr><th>Food</th><th class="num">Grams</th><th class="num">kcal</th><th class="num">P</th><th class="num">C</th><th class="num">F</th></tr></thead>
+      <tbody id="items"></tbody>
+    </table>
+    <datalist id="foodList"></datalist>
+    <button class="link small" id="addItem" style="margin-top:6px">+ Add a food it missed</button>
+    <p class="small muted" id="notes"></p>
+    <p class="small" id="projected"></p>
+    <div class="log-row">
+      <select id="mealLabel">
+        <option>Breakfast</option><option>Lunch</option><option>Snack</option><option>Dinner</option>
+      </select>
+      <button class="primary" id="logBtn">Log meal</button>
+      <button id="discardBtn">Discard</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Today’s meals</h2>
+    <div id="meals"></div>
+  </section>
+</main>
+
+<dialog id="goalDlg">
+  <form method="dialog" id="goalForm">
+    <h2>Daily goal</h2>
+    <label>Calories (kcal)<input type="number" id="gCal" min="800" max="6000" required></label>
+    <div class="grid3" style="margin-top:10px">
+      <label>Protein %<input type="number" id="gP" min="5" max="70" required></label>
+      <label>Carbs %<input type="number" id="gC" min="5" max="80" required></label>
+      <label>Fat %<input type="number" id="gF" min="5" max="70" required></label>
+    </div>
+    <details>
+      <summary>Calculate from my body stats</summary>
+      <div class="grid2" style="margin-top:10px">
+        <label>Sex<select id="cSex"><option value="f">Female</option><option value="m">Male</option></select></label>
+        <label>Age<input type="number" id="cAge" value="30"></label>
+        <label>Height (cm)<input type="number" id="cH" value="165"></label>
+        <label>Weight (kg)<input type="number" id="cW" value="65"></label>
+        <label>Activity<select id="cAct">
+          <option value="1.2">Sedentary</option><option value="1.375" selected>Light</option>
+          <option value="1.55">Moderate</option><option value="1.725">Very active</option></select></label>
+        <label>Aim<select id="cAim">
+          <option value="-500">Lose ~0.5 kg/wk</option><option value="0" selected>Maintain</option>
+          <option value="300">Gain muscle</option></select></label>
+      </div>
+      <button type="button" id="calcBtn" style="margin-top:10px">Use calculated goal</button>
+    </details>
+    <div class="error" id="goalErr" hidden></div>
+    <div class="log-row" style="justify-content:flex-end">
+      <button value="cancel" formnovalidate>Cancel</button>
+      <button class="primary" id="saveGoal" value="save">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+// Opened straight from disk? The API only exists on the server, so go there.
+if (location.protocol === "file:") location.replace("http://localhost:8001/");
+
+const $ = (id) => document.getElementById(id);
+let state = null;       // day summary from server
+let pending = null;     // analysed meal not yet logged
+let file = null;
+
+const fmt = (n) => Math.round(n).toLocaleString();
+
+async function api(path, opts = {}) {
+  const res = await fetch(path, opts);
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.detail?.[0]?.msg || body.detail || `Request failed (${res.status})`);
+  return body;
+}
+
+function render(s) {
+  state = s;
+  const left = s.target.calories - s.consumed.calories;
+  $("kcalLeft").textContent = fmt(Math.abs(left));
+  $("kcalLeft").className = "big" + (left < 0 ? " over" : "");
+  $("kcalLeftLabel").innerHTML = `${left < 0 ? "kcal over" : "kcal left"}<br>of ${fmt(s.target.calories)}`;
+  const frac = Math.min(s.consumed.calories / s.target.calories, 1);
+  $("ringArc").style.strokeDashoffset = 351.9 * (1 - frac);
+  $("ringArc").style.stroke = left < 0 ? "var(--warn)" : "var(--brand)";
+
+  $("macros").innerHTML = [["Protein", "protein"], ["Carbs", "carbs"], ["Fat", "fat"]].map(([label, k]) => {
+    const pct = Math.min(100, s.consumed[k] / s.target[k] * 100);
+    return `<div class="macro"><div class="row"><span>${label}</span>
+      <b>${fmt(s.consumed[k])} / ${fmt(s.target[k])} g</b></div>
+      <div class="bar"><i style="width:${pct}%;background:var(--${k})"></i></div></div>`;
+  }).join("");
+
+  const g = s.guidance;
+  $("guide").innerHTML = `<p class="${g.status === "over" ? "over" : ""}"><b>${esc(g.headline)}</b></p>` +
+    (g.tips.length ? `<ul>${g.tips.map(t => `<li>${esc(t)}</li>`).join("")}</ul>` : "");
+
+  $("meals").innerHTML = s.meals.length ? s.meals.map(m => `
+    <div class="meal">
+      <div><b>${esc(m.label)}</b> <span class="small muted">${m.logged_at.slice(11, 16)}</span><br>
+        <span class="small muted">${m.items.map(i => `${esc(i.name)} (${i.grams} g)`).join(", ")}</span></div>
+      <div style="text-align:right"><div class="kcal">${fmt(m.calories)} kcal</div>
+        <button class="link small" data-del="${m.id}">Remove</button></div>
+    </div>`).join("") : `<p class="muted small" style="margin:0">Nothing logged yet today.</p>`;
+}
+
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+
+function recompute(item) {
+  const k = item.grams / 100;
+  for (const m of ["calories", "protein", "carbs", "fat"]) item[m] = item.per100[m] * k;
+}
+
+let foods = [];  // nutrition DB, for corrections
+const SOURCE_LABEL = { database: "nutrition DB", "model estimate": "AI estimate", manual: "not in database" };
+function tagFor(it) {
+  const src = SOURCE_LABEL[it.source] || it.source;
+  if (it.source === "manual") return "not in database – pick a suggestion for nutrition";
+  return it.edited ? `${src} · corrected by you` : `${src} · ${Math.round(it.confidence * 100)}% sure`;
+}
+api("/api/foods").then(list => {
+  foods = list;
+  $("foodList").innerHTML = list.map(f => `<option value="${esc(f.name)}">`).join("");
+}).catch(() => {});
+
+function renderPending() {
+  const rows = pending.items.map((it, i) => `
+    <tr><td><div class="namerow"><input class="name" list="foodList" value="${esc(it.name)}" data-name-idx="${i}"
+          placeholder="Type a food…" aria-label="Food name">
+        <button class="x" data-rm="${i}" title="Remove this item" aria-label="Remove ${esc(it.name)}">×</button></div>
+        <span class="tag">${tagFor(it)}</span></td>
+      <td class="num"><input type="number" min="0" step="5" value="${Math.round(it.grams)}" data-idx="${i}"></td>
+      <td class="num">${fmt(it.calories)}</td><td class="num">${fmt(it.protein)}</td>
+      <td class="num">${fmt(it.carbs)}</td><td class="num">${fmt(it.fat)}</td></tr>`).join("");
+  const t = ["calories", "protein", "carbs", "fat"].reduce((a, k) => (a[k] = pending.items.reduce((s, i) => s + i[k], 0), a), {});
+  $("items").innerHTML = rows + `<tr class="totals"><td>Total</td><td></td><td class="num">${fmt(t.calories)}</td>
+    <td class="num">${fmt(t.protein)}</td><td class="num">${fmt(t.carbs)}</td><td class="num">${fmt(t.fat)}</td></tr>`;
+  const e = pending.engine;
+  $("notes").textContent = `${e.label} (${e.model})` + (pending.notes ? ` · ${pending.notes}` : "");
+  const after = state.target.calories - state.consumed.calories - t.calories;
+  $("projected").innerHTML = after >= 0
+    ? `After this meal you'll have <b>${fmt(after)} kcal</b> left today.`
+    : `<span class="over">This meal puts you <b>${fmt(-after)} kcal</b> over today's goal.</span>`;
+  $("resultCard").hidden = false;
+}
+
+function guessMealLabel() {
+  const h = new Date().getHours();
+  $("mealLabel").value = h < 11 ? "Breakfast" : h < 15 ? "Lunch" : h < 18 ? "Snack" : "Dinner";
+}
+
+function setFile(f) {
+  if (!f || !f.type.startsWith("image/")) return;
+  file = f;
+  $("preview").src = URL.createObjectURL(f);
+  $("preview").hidden = false;
+  $("analyzeBtn").hidden = false;
+  $("hint").hidden = false;
+  $("pickBtn").textContent = "Change photo";
+  $("pickBtn").classList.remove("primary");
+  $("analyzeBtn").classList.add("primary");
+  $("err").hidden = true;
+}
+
+// Downscale large photos so uploads stay under the 5 MB API limit.
+async function shrink(f, maxSide = 1568) {
+  const img = await createImageBitmap(f);
+  const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+  if (scale === 1 && f.size < 4.5e6) return f;
+  const c = Object.assign(document.createElement("canvas"), { width: img.width * scale, height: img.height * scale });
+  c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+  return new Promise(r => c.toBlob(b => r(new File([b], "meal.jpg", { type: "image/jpeg" })), "image/jpeg", 0.88));
+}
+
+$("pickBtn").onclick = () => $("file").click();
+$("file").onchange = (e) => setFile(e.target.files[0]);
+const drop = $("drop");
+drop.ondragover = (e) => { e.preventDefault(); drop.classList.add("drag"); };
+drop.ondragleave = () => drop.classList.remove("drag");
+drop.ondrop = (e) => { e.preventDefault(); drop.classList.remove("drag"); setFile(e.dataTransfer.files[0]); };
+
+$("analyzeBtn").onclick = async () => {
+  const btn = $("analyzeBtn");
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spinner"></span>Analysing…`;
+  $("err").hidden = true;
+  try {
+    const fd = new FormData();
+    fd.append("image", await shrink(file));
+    fd.append("hint", $("hint").value);
+    fd.append("engine", $("engineSel").value);
+    pending = await api("/api/analyze", { method: "POST", body: fd });
+    guessMealLabel();
+    renderPending();
+    $("resultCard").scrollIntoView({ behavior: "smooth", block: "start" });
+  } catch (e) {
+    $("err").textContent = e.message; $("err").hidden = false;
+  } finally {
+    btn.disabled = false; btn.textContent = "Analyse";
+  }
+};
+
+$("items").oninput = (e) => {
+  const idx = e.target.dataset.idx;
+  if (idx === undefined) return;
+  const it = pending.items[idx];
+  it.grams = Math.max(0, Number(e.target.value) || 0);
+  recompute(it);
+  const pos = e.target.selectionStart;
+  renderPending();
+  const el = document.querySelector(`input[data-idx="${idx}"]`);
+  el.focus(); try { el.setSelectionRange(pos, pos); } catch {}
+};
+
+$("items").addEventListener("change", (e) => {
+  const idx = e.target.dataset.nameIdx;
+  if (idx === undefined) return;
+  const it = pending.items[idx];
+  const name = e.target.value.trim();
+  const match = foods.find(f => f.name.toLowerCase() === name.toLowerCase());
+  it.name = name || it.name;
+  it.edited = true;
+  if (match) {
+    Object.assign(it, { name: match.name, db_key: match.key, per100: { ...match.per100 }, source: "database" });
+  } else if (it.source === "database") {
+    it.source = "model estimate";  // renamed to something not in the DB: keep current numbers
+  }
+  recompute(it);
+  renderPending();
+});
+$("items").addEventListener("click", (e) => {
+  const idx = e.target.dataset.rm;
+  if (idx === undefined) return;
+  pending.items.splice(idx, 1);
+  renderPending();
+});
+$("addItem").onclick = () => {
+  pending.items.push({ name: "", grams: 100, db_key: null, source: "manual", confidence: 1, edited: true,
+                       per100: { calories: 0, protein: 0, carbs: 0, fat: 0 } });
+  recompute(pending.items.at(-1));
+  renderPending();
+  document.querySelector(`input[data-name-idx="${pending.items.length - 1}"]`).focus();
+};
+
+function resetUpload() {
+  pending = null; file = null;
+  $("resultCard").hidden = true;
+  $("preview").hidden = true; $("analyzeBtn").hidden = true; $("hint").hidden = true; $("hint").value = "";
+  $("pickBtn").textContent = "📷 Take / choose photo"; $("pickBtn").classList.add("primary");
+  $("file").value = "";
+}
+
+$("logBtn").onclick = async () => {
+  $("logBtn").disabled = true;
+  try {
+    render(await api("/api/meals", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ label: $("mealLabel").value, items: pending.items.filter(i => i.name.trim()) }),
+    }));
+    resetUpload();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  } catch (e) { alert(e.message); }
+  finally { $("logBtn").disabled = false; }
+};
+$("discardBtn").onclick = resetUpload;
+
+$("meals").onclick = async (e) => {
+  const id = e.target.dataset.del;
+  if (id && confirm("Remove this meal?")) render(await api(`/api/meals/${id}`, { method: "DELETE" }));
+};
+
+// Goal dialog
+$("goalBtn").onclick = () => {
+  const g = state.goal;
+  $("gCal").value = g.calories; $("gP").value = g.protein_pct; $("gC").value = g.carbs_pct; $("gF").value = g.fat_pct;
+  $("goalErr").hidden = true;
+  $("goalDlg").showModal();
+};
+$("calcBtn").onclick = () => {
+  // Mifflin–St Jeor BMR × activity factor, plus the chosen surplus/deficit.
+  const w = +$("cW").value, h = +$("cH").value, a = +$("cAge").value;
+  const bmr = 10 * w + 6.25 * h - 5 * a + ($("cSex").value === "m" ? 5 : -161);
+  const kcal = Math.round((bmr * +$("cAct").value + +$("cAim").value) / 10) * 10;
+  $("gCal").value = Math.max(1200, kcal);
+};
+$("goalForm").onsubmit = async (e) => {
+  if (e.submitter?.value !== "save") return;
+  e.preventDefault();
+  try {
+    render(await api("/api/goal", {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ calories: +$("gCal").value, protein_pct: +$("gP").value, carbs_pct: +$("gC").value, fat_pct: +$("gF").value }),
+    }));
+    $("goalDlg").close();
+  } catch (err) { $("goalErr").textContent = err.message; $("goalErr").hidden = false; }
+};
+
+// Engine picker: lists every engine; ones not set up are disabled with a hint.
+let engineList = [];
+function storedEngine() { try { return localStorage.getItem("engine"); } catch { return null; } }
+function showEngineHint() {
+  const e = engineList.find(x => x.name === $("engineSel").value);
+  $("engineHint").textContent = !e ? "" : !e.available ? `Not set up: ${e.setup}`
+    : `${e.model}${e.free ? " · free tier" : " · paid per photo"}`;
+}
+async function loadEngines() {
+  const { default: def, engines } = await api("/api/engines");
+  engineList = engines;
+  $("noEngine").hidden = !!def;
+  const saved = storedEngine();
+  const pick = engines.some(e => e.name === saved && e.available) ? saved : def;
+  $("engineSel").innerHTML = engines.map(e =>
+    `<option value="${e.name}" ${e.available ? "" : "disabled"} ${e.name === pick ? "selected" : ""}>` +
+    `${esc(e.label)}${e.free ? " (free)" : ""}${e.available ? "" : " — not set up"}</option>`).join("");
+  if (!pick) $("engineSel").insertAdjacentHTML("afterbegin", `<option value="" selected disabled>None set up yet</option>`);
+  showEngineHint();
+  if (!pick) $("engineHint").textContent = "Set up any engine below, restart the server and refresh: "
+    + engines.map(e => `${e.label}: ${e.setup}`).join(" · ");
+}
+$("engineSel").onchange = () => {
+  try { localStorage.setItem("engine", $("engineSel").value); } catch {}
+  showEngineHint();
+};
+loadEngines().catch(e => { $("engineHint").textContent = e.message; });
+
+api("/api/today").then(render).catch(e => { $("guide").textContent = e.message; });
+</script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+anthropic>=1.9
+google-genai>=2.0
+fastapi
+uvicorn[standard]
+python-multipart
+pydantic>=2
+pillow>=10
+pytest
